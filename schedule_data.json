@@ -1,0 +1,76 @@
+{
+  "tasks": {
+    "2026-06-08": [
+      {
+        "task": "优化日历视图代码",
+        "done": true
+      },
+      {
+        "task": "完成 Git 初始化",
+        "done": false
+      }
+    ],
+    "2026-06-09": [
+      {
+        "task": "写 README 文档",
+        "done": false
+      }
+    ],
+    "2026-06-10": [
+      {
+        "task": "学习 pytest 基础",
+        "done": false
+      }
+    ]
+  },
+  "projects": {
+    "日程管理工具优化": {
+      "steps": [
+        {
+          "step": "工程基建（Git + README + requirements）",
+          "done": false,
+          "deadline": "2026-06-08"
+        },
+        {
+          "step": "日历可视化功能实现",
+          "done": true,
+          "deadline": "2026-06-08"
+        },
+        {
+          "step": "代码架构重构（模块化拆分）",
+          "done": false,
+          "deadline": "2026-06-12"
+        },
+        {
+          "step": "添加任务优先级功能",
+          "done": false,
+          "deadline": "2026-06-15"
+        },
+        {
+          "step": "数据统计看板",
+          "done": false,
+          "deadline": "2026-06-20"
+        }
+      ]
+    },
+    "找实习": {
+      "steps": [
+        {
+          "step": "修改打招呼语",
+          "done": true,
+          "deadline": "2026-06-07"
+        },
+        {
+          "step": "修改简历",
+          "done": false,
+          "deadline": "2026-06-10"
+        },
+        {
+          "step": "投递 5 家公司",
+          "done": false,
+          "deadline": "2026-06-14"
+        }
+      ]
+    }
+  }
+}
