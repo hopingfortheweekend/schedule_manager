@@ -44,14 +44,12 @@ class ScheduleApp:
         self.project_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.project_frame, text="长期项目")
 
-        self.project_listbox = tk.Listbox(self.project_frame, height=10)
+        self.project_listbox = tk.Listbox(self.project_frame, height=10, cursor="hand2")
         self.project_listbox.pack(fill="both", expand=True)
+        self.project_listbox.bind("<Double-Button-1>", self.view_project)
 
         self.add_project_button = ttk.Button(self.project_frame, text="添加项目", command=self.add_project)
         self.add_project_button.pack(pady=5)
-
-        self.view_project_button = ttk.Button(self.project_frame, text="查看项目详情", command=self.view_project)
-        self.view_project_button.pack(pady=5)
 
         self.load_projects()
 
@@ -167,12 +165,19 @@ class ScheduleApp:
             self.save_data()
             self.load_projects()
 
-    def view_project(self):
-        selection = self.project_listbox.curselection()
-        if not selection:
-            messagebox.showwarning("提示", "请选择一个项目")
-            return
-        index = selection[0]
+    def view_project(self, event=None):
+        if event:
+            index = self.project_listbox.nearest(event.y)
+            if index < 0:
+                return
+            self.project_listbox.selection_clear(0, tk.END)
+            self.project_listbox.selection_set(index)
+        else:
+            selection = self.project_listbox.curselection()
+            if not selection:
+                messagebox.showwarning("提示", "请选择一个项目")
+                return
+            index = selection[0]
         project_name = list(self.data["projects"].keys())[index]
         ProjectWindow(self.root, project_name, self.data["projects"][project_name],
                       self.save_data, self.load_projects, self.refresh_calendar_events)
@@ -361,7 +366,17 @@ class ProjectWindow:
 
     def load_steps(self):
         self.step_listbox.delete(0, tk.END)
-        for step in self.project_data["steps"]:
+        # 按截止时间排序：有日期的在前（早→晚），无日期的在后
+        def sort_key(step):
+            dl = step.get("deadline", "")
+            if dl:
+                try:
+                    return (0, datetime.date.fromisoformat(dl))
+                except ValueError:
+                    return (1, datetime.date.max)
+            return (1, datetime.date.max)
+        sorted_steps = sorted(self.project_data["steps"], key=sort_key)
+        for step in sorted_steps:
             status = "✓" if step["done"] else "✗"
             deadline = step["deadline"] if step["deadline"] else "无截止时间"
             self.step_listbox.insert(tk.END, f"[{status}] {step['step']} - 截止: {deadline}")
