@@ -6,6 +6,8 @@ import json
 import os
 import datetime
 
+from utils.logger import logger
+
 
 class DataStore:
     def __init__(self, filepath="schedule_data.json"):
@@ -17,12 +19,20 @@ class DataStore:
 
     def load(self):
         if os.path.exists(self.filepath):
-            with open(self.filepath, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
+            try:
+                with open(self.filepath, "r", encoding="utf-8") as f:
+                    self.data = json.load(f)
+                logger.info("数据加载成功: %s", self.filepath)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error("数据文件损坏或无法读取: %s", e)
+                self.data = {"tasks": {}, "projects": {}}
 
     def save(self):
-        with open(self.filepath, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
+        try:
+            with open(self.filepath, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, ensure_ascii=False, indent=2)
+        except IOError as e:
+            logger.error("数据保存失败: %s", e)
 
     # ── 每日任务操作 ──────────────────────────
 

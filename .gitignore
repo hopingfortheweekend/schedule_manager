@@ -29,6 +29,12 @@ Thumbs.db
 *.bak
 schedule_data_backup.json
 
+# 日志
+*.log
+
+# 测试
+.pytest_cache/
+
 # Jupyter Notebook
 .ipynb_checkpoints/
 
