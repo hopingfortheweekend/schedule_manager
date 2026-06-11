@@ -104,6 +104,33 @@ class TestProjectOperations:
         assert s["step"] == "新标题"
         assert s["deadline"] == "2026-07-15"
 
+    def test_toggle_project(self, store):
+        store.add_project("测试项目")
+        assert store.get_project_done("测试项目") is False
+        store.toggle_project("测试项目")
+        assert store.get_project_done("测试项目") is True
+        store.toggle_project("测试项目")
+        assert store.get_project_done("测试项目") is False
+
+    def test_auto_check_all_steps_done(self, store):
+        """所有步骤完成时自动标记项目完成"""
+        store.add_project("P1")
+        store.add_step("P1", "步骤1", "")
+        store.add_step("P1", "步骤2", "")
+        store.toggle_step("P1", 0)
+        store.toggle_step("P1", 1)
+        store.auto_check_project("P1")
+        assert store.get_project_done("P1") is True
+
+    def test_auto_check_not_all_done(self, store):
+        """部分步骤完成时不自动标记"""
+        store.add_project("P2")
+        store.add_step("P2", "步骤1", "")
+        store.add_step("P2", "步骤2", "")
+        store.toggle_step("P2", 0)
+        store.auto_check_project("P2")
+        assert store.get_project_done("P2") is False
+
 
 class TestCalendarQueries:
     """日历查询相关测试"""

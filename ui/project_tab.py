@@ -13,10 +13,12 @@ class ProjectTab(ttk.Frame):
         super().__init__(parent)
         self.data_store = data_store
         self.on_data_changed = on_data_changed
+        self._proj_names = []  # 与列表显示顺序一致的项目名
 
         # 项目列表
         self.listbox = tk.Listbox(self, height=10, cursor="hand2")
         self.listbox.pack(fill="both", expand=True)
+        self.listbox.bind("<Button-1>", self._on_click)
         self.listbox.bind("<Double-Button-1>", self._open_project)
 
         # 按钮
@@ -31,8 +33,12 @@ class ProjectTab(ttk.Frame):
 
     def refresh(self):
         self.listbox.delete(0, tk.END)
-        for name, detail in self.data_store.get_projects().items():
-            self.listbox.insert(tk.END, f"{name} - {len(detail['steps'])} 步骤")
+        self._proj_names = list(self.data_store.get_projects().keys())
+        for name in self._proj_names:
+            proj = self.data_store.get_project(name)
+            done = self.data_store.get_project_done(name)
+            status = "✓" if done else "✗"
+            self.listbox.insert(tk.END, f"[{status}] {name} - {len(proj['steps'])} 步骤")
 
     # ── 内部交互 ──────────────────────────────
 
@@ -52,16 +58,50 @@ class ProjectTab(ttk.Frame):
             messagebox.showwarning("提示", "请先选中一个项目")
             return
         index = sel[0]
-        proj_name = list(self.data_store.get_projects().keys())[index]
+        if index >= len(self._proj_names):
+            return
+        proj_name = self._proj_names[index]
         if messagebox.askyesno("确认删除", f"确定要删除项目「{proj_name}」及其所有步骤吗？此操作不可恢复。"):
             self.data_store.delete_project(proj_name)
             self.refresh()
             self._notify()
 
+    def _on_click(self, event):
+        index = self.listbox.nearest(event.y)
+        if index < 0 or index >= len(self._proj_names):
+            return
+        if event.x < 35:  # 状态标记区域
+            self._toggle_project(index)
+        else:
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(index)
+
+    def _toggle_project(self, index):
+        proj_name = self._proj_names[index]
+        currently_done = self.data_store.get_project_done(proj_name)
+
+        if not currently_done:
+            # 要标记为完成 → 检查是否所有步骤都完成了
+            proj = self.data_store.get_project(proj_name)
+            steps = proj.get("steps", [])
+            incomplete = [s["step"] for s in steps if not s.get("done")]
+            if incomplete:
+                msg = f"以下 {len(incomplete)} 个步骤尚未完成:\n\n"
+                msg += "\n".join(f"  · {s}" for s in incomplete[:5])
+                if len(incomplete) > 5:
+                    msg += f"\n  ... 还有 {len(incomplete) - 5} 个"
+                msg += "\n\n是否仍要标记项目为已完成？"
+                if not messagebox.askyesno("确认操作", msg):
+                    return
+
+        self.data_store.toggle_project(proj_name)
+        self.refresh()
+        self._notify()
+
     def _open_project(self, event=None):
         if event:
             index = self.listbox.nearest(event.y)
-            if index < 0:
+            if index < 0 or index >= len(self._proj_names):
                 return
             self.listbox.selection_clear(0, tk.END)
             self.listbox.selection_set(index)
@@ -71,7 +111,7 @@ class ProjectTab(ttk.Frame):
                 return
             index = sel[0]
 
-        proj_name = list(self.data_store.get_projects().keys())[index]
+        proj_name = self._proj_names[index]
         ProjectWindow(self, proj_name, self.data_store,
                       on_done=lambda: (self.refresh(), self._notify()))
 
@@ -94,7 +134,6 @@ class ProjectWindow:
         btn_frame = ttk.Frame(self.top)
         btn_frame.pack(pady=5)
         ttk.Button(btn_frame, text="添加步骤", command=self._add).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="切换完成状态", command=self._toggle_selected).pack(side=tk.LEFT, padx=2)
 
         self.refresh()
 
@@ -132,6 +171,8 @@ class ProjectWindow:
         return display_index  # fallback
 
     def _notify(self):
+        # 步骤变更后自动检查项目是否全部完成
+        self.data_store.auto_check_project(self.project_name)
         if self.on_done:
             self.on_done()
 
@@ -159,13 +200,6 @@ class ProjectWindow:
         self.data_store.toggle_step(self.project_name, real)
         self.refresh()
         self._notify()
-
-    def _toggle_selected(self):
-        sel = self.listbox.curselection()
-        if not sel:
-            messagebox.showwarning("提示", "请先点击选中一个步骤")
-            return
-        self._toggle_at(sel[0])
 
     def _on_edit(self, event=None):
         display_index = self.listbox.nearest(event.y) if event else None

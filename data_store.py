@@ -77,13 +77,35 @@ class DataStore:
 
     def add_project(self, name):
         if name not in self.data["projects"]:
-            self.data["projects"][name] = {"steps": []}
+            self.data["projects"][name] = {"steps": [], "done": False}
             self.save()
 
     def delete_project(self, name):
         if name in self.data["projects"]:
             del self.data["projects"][name]
+
+    def toggle_project(self, name):
+        """切换项目的完成状态"""
+        proj = self.data["projects"].get(name)
+        if proj:
+            proj["done"] = not proj.get("done", False)
             self.save()
+
+    def auto_check_project(self, name):
+        """检查项目是否所有步骤都完成，是的话自动标记项目完成"""
+        proj = self.data["projects"].get(name)
+        if not proj:
+            return
+        steps = proj.get("steps", [])
+        if steps and all(s.get("done") for s in steps):
+            if not proj.get("done"):
+                proj["done"] = True
+                self.save()
+
+    def get_project_done(self, name):
+        """获取项目的完成状态（兼容旧数据无 done 字段）"""
+        proj = self.data["projects"].get(name)
+        return proj.get("done", False) if proj else False
 
     def add_step(self, project_name, text, deadline):
         proj = self.data["projects"].get(project_name)
