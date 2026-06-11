@@ -104,8 +104,9 @@ class ProjectWindow:
         if not proj:
             return
 
-        # 按截止时间排序
-        def sort_key(step):
+        # 排序：有截止日期的在前（早→晚），无日期的在后
+        def sort_key(item):
+            _, step = item
             dl = step.get("deadline", "")
             if dl:
                 try:
@@ -114,10 +115,21 @@ class ProjectWindow:
                     return (1, datetime.date.max)
             return (1, datetime.date.max)
 
-        for step in sorted(proj["steps"], key=sort_key):
+        # (数据索引, 步骤) → 排序 → 建立显示位置 → 数据位置映射
+        indexed = list(enumerate(proj["steps"]))
+        indexed.sort(key=sort_key)
+        self._display_to_data = [data_idx for data_idx, _ in indexed]
+
+        for _, step in indexed:
             status = "✓" if step["done"] else "✗"
             deadline = step["deadline"] if step["deadline"] else "无截止时间"
             self.listbox.insert(tk.END, f"[{status}] {step['step']} - 截止: {deadline}")
+
+    def _real_index(self, display_index):
+        """将显示索引转为数据中的真实索引"""
+        if hasattr(self, "_display_to_data") and 0 <= display_index < len(self._display_to_data):
+            return self._display_to_data[display_index]
+        return display_index  # fallback
 
     def _notify(self):
         if self.on_done:
@@ -142,8 +154,9 @@ class ProjectWindow:
             self.listbox.selection_clear(0, tk.END)
             self.listbox.selection_set(index)
 
-    def _toggle_at(self, index):
-        self.data_store.toggle_step(self.project_name, index)
+    def _toggle_at(self, display_index):
+        real = self._real_index(display_index)
+        self.data_store.toggle_step(self.project_name, real)
         self.refresh()
         self._notify()
 
@@ -155,19 +168,20 @@ class ProjectWindow:
         self._toggle_at(sel[0])
 
     def _on_edit(self, event=None):
-        index = self.listbox.nearest(event.y) if event else None
-        if index is None or index < 0:
+        display_index = self.listbox.nearest(event.y) if event else None
+        if display_index is None or display_index < 0:
             return
+        real = self._real_index(display_index)
         proj = self.data_store.get_project(self.project_name)
-        if not proj or index >= len(proj["steps"]):
+        if not proj or real >= len(proj["steps"]):
             return
-        step = proj["steps"][index]
+        step = proj["steps"][real]
         dlg = EditDialog(self.top, "编辑/删除步骤", text=step["step"],
                          deadline=step.get("deadline", ""), has_deadline=True)
         if dlg.result == "save":
-            self.data_store.update_step(self.project_name, index, dlg.text, dlg.deadline)
+            self.data_store.update_step(self.project_name, real, dlg.text, dlg.deadline)
         elif dlg.result == "delete":
-            self.data_store.delete_step(self.project_name, index)
+            self.data_store.delete_step(self.project_name, real)
         else:
             return
         self.refresh()
