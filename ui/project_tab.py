@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import datetime
 
+from ui.dialogs import EditDialog
+
 
 class ProjectTab(ttk.Frame):
     def __init__(self, parent, data_store, on_data_changed=None):
@@ -18,7 +20,10 @@ class ProjectTab(ttk.Frame):
         self.listbox.bind("<Double-Button-1>", self._open_project)
 
         # 按钮
-        ttk.Button(self, text="添加项目", command=self._add).pack(pady=5)
+        btn_frame = ttk.Frame(self)
+        btn_frame.pack(pady=5)
+        ttk.Button(btn_frame, text="添加项目", command=self._add).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="删除项目", command=self._delete).pack(side=tk.LEFT, padx=2)
 
         self.refresh()
 
@@ -40,6 +45,18 @@ class ProjectTab(ttk.Frame):
         if name:
             self.data_store.add_project(name)
             self.refresh()
+
+    def _delete(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showwarning("提示", "请先选中一个项目")
+            return
+        index = sel[0]
+        proj_name = list(self.data_store.get_projects().keys())[index]
+        if messagebox.askyesno("确认删除", f"确定要删除项目「{proj_name}」及其所有步骤吗？此操作不可恢复。"):
+            self.data_store.delete_project(proj_name)
+            self.refresh()
+            self._notify()
 
     def _open_project(self, event=None):
         if event:
@@ -145,14 +162,13 @@ class ProjectWindow:
         if not proj or index >= len(proj["steps"]):
             return
         step = proj["steps"][index]
-        new_text = simpledialog.askstring("编辑步骤", "修改步骤内容:", initialvalue=step["step"])
-        if new_text is not None and new_text != step["step"]:
-            step["step"] = new_text
-        new_dl = simpledialog.askstring("编辑截止时间", "修改截止日期 (YYYY-MM-DD)，可留空:",
-                                        initialvalue=step.get("deadline", ""))
-        if new_dl is not None and new_dl != step.get("deadline", ""):
-            step["deadline"] = new_dl
-        if new_text is not None or new_dl is not None:
-            self.data_store.save()
-            self.refresh()
-            self._notify()
+        dlg = EditDialog(self.top, "编辑/删除步骤", text=step["step"],
+                         deadline=step.get("deadline", ""), has_deadline=True)
+        if dlg.result == "save":
+            self.data_store.update_step(self.project_name, index, dlg.text, dlg.deadline)
+        elif dlg.result == "delete":
+            self.data_store.delete_step(self.project_name, index)
+        else:
+            return
+        self.refresh()
+        self._notify()

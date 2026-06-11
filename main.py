@@ -8,6 +8,8 @@ from data_store import DataStore
 from ui.task_tab import TaskTab
 from ui.project_tab import ProjectTab
 from ui.calendar_tab import CalendarTab
+from ui.stats_tab import StatsTab
+from utils.export import export_csv
 
 
 class App:
@@ -19,22 +21,35 @@ class App:
         # 数据层
         self.data_store = DataStore()
 
+        # 顶部栏（导出按钮）
+        top_bar = ttk.Frame(root)
+        top_bar.pack(fill="x", padx=5, pady=(5, 0))
+        ttk.Button(top_bar, text="📤 导出数据", command=lambda: export_csv(self.data_store, root)
+                   ).pack(side=tk.RIGHT)
+
         # 标签页容器
         self.notebook = ttk.Notebook(root)
         self.notebook.pack(fill="both", expand=True)
 
-        # —— 三个页面 ——
-        # 日历页先创建，因为任务/项目变更时需要刷新它
-        self.calendar_tab = CalendarTab(self.notebook, self.data_store)
-        self.notebook.add(self.calendar_tab, text="日历视图")
-
+        # —— 四个页面 ——
         self.task_tab = TaskTab(self.notebook, self.data_store,
-                                on_data_changed=self.calendar_tab.refresh)
+                                on_data_changed=self._on_data_changed)
         self.notebook.add(self.task_tab, text="每日任务")
 
         self.project_tab = ProjectTab(self.notebook, self.data_store,
-                                      on_data_changed=self.calendar_tab.refresh)
+                                      on_data_changed=self._on_data_changed)
         self.notebook.add(self.project_tab, text="长期项目")
+
+        self.calendar_tab = CalendarTab(self.notebook, self.data_store)
+        self.notebook.add(self.calendar_tab, text="日历视图")
+
+        self.stats_tab = StatsTab(self.notebook, self.data_store)
+        self.notebook.add(self.stats_tab, text="数据统计")
+
+    def _on_data_changed(self):
+        """数据变更时刷新日历和统计"""
+        self.calendar_tab.refresh()
+        self.stats_tab.refresh()
 
 
 if __name__ == "__main__":

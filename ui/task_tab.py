@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import datetime
 
+from ui.dialogs import EditDialog
+
 
 class TaskTab(ttk.Frame):
     def __init__(self, parent, data_store, on_data_changed=None):
@@ -107,7 +109,7 @@ class TaskTab(ttk.Frame):
         self._toggle_at(sel[0])
 
     def _on_edit(self, event=None):
-        """双击编辑：任务内容 或 步骤内容+截止日期"""
+        """双击编辑/删除：任务内容 或 步骤内容+截止日期"""
         index = self.listbox.nearest(event.y) if event else None
         if index is None or index < 0:
             return
@@ -117,34 +119,36 @@ class TaskTab(ttk.Frame):
         due_steps = self.data_store.get_steps_due_on(date_str)
 
         if index < len(tasks):
-            # 编辑每日任务
+            # 编辑/删除 每日任务
             task = tasks[index]
-            new_text = simpledialog.askstring("编辑任务", "修改任务内容:", initialvalue=task["task"])
-            if new_text and new_text != task["task"]:
-                self.data_store.update_task(date_str, index, new_text)
-                self.refresh()
-                self._notify()
+            dlg = EditDialog(self, "编辑/删除任务", text=task["task"])
+            if dlg.result == "save":
+                self.data_store.update_task(date_str, index, dlg.text)
+            elif dlg.result == "delete":
+                self.data_store.delete_task(date_str, index)
+            else:
+                return
+            self.refresh()
+            self._notify()
         else:
-            # 编辑项目步骤
+            # 编辑/删除 项目步骤
             step_index = index - len(tasks)
             if step_index < len(due_steps):
                 proj_name, step = due_steps[step_index]
                 proj = self.data_store.get_project(proj_name)
                 if proj:
-                    # 找到该步骤在项目中的实际索引
                     matching_indices = [j for j, st in enumerate(proj["steps"])
                                        if st.get("deadline") == date_str]
                     if step_index < len(matching_indices):
                         real_index = matching_indices[step_index]
                         s = proj["steps"][real_index]
-                        new_text = simpledialog.askstring("编辑步骤", "修改步骤内容:", initialvalue=s["step"])
-                        if new_text is not None and new_text != s["step"]:
-                            s["step"] = new_text
-                        new_dl = simpledialog.askstring("编辑截止时间", "修改截止日期 (YYYY-MM-DD):",
-                                                        initialvalue=s.get("deadline", ""))
-                        if new_dl is not None and new_dl != s.get("deadline", ""):
-                            s["deadline"] = new_dl
-                        if new_text is not None or new_dl is not None:
-                            self.data_store.save()
-                            self.refresh()
-                            self._notify()
+                        dlg = EditDialog(self, "编辑/删除步骤", text=s["step"],
+                                         deadline=s.get("deadline", ""), has_deadline=True)
+                        if dlg.result == "save":
+                            self.data_store.update_step(proj_name, real_index, dlg.text, dlg.deadline)
+                        elif dlg.result == "delete":
+                            self.data_store.delete_step(proj_name, real_index)
+                        else:
+                            return
+                        self.refresh()
+                        self._notify()
