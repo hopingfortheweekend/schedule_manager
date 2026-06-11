@@ -92,15 +92,23 @@ class DataStore:
             self.save()
 
     def auto_check_project(self, name):
-        """检查项目是否所有步骤都完成，是的话自动标记项目完成"""
+        """步骤变更后自动同步项目状态：
+        - 所有步骤都完成 → 项目标记为完成
+        - 有步骤未完成 → 项目标记为未完成
+        """
         proj = self.data["projects"].get(name)
         if not proj:
             return
         steps = proj.get("steps", [])
-        if steps and all(s.get("done") for s in steps):
-            if not proj.get("done"):
-                proj["done"] = True
-                self.save()
+        if not steps:
+            return
+        all_done = all(s.get("done") for s in steps)
+        if all_done and not proj.get("done"):
+            proj["done"] = True
+            self.save()
+        elif not all_done and proj.get("done"):
+            proj["done"] = False
+            self.save()
 
     def get_project_done(self, name):
         """获取项目的完成状态（兼容旧数据无 done 字段）"""

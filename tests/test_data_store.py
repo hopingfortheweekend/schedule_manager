@@ -131,6 +131,19 @@ class TestProjectOperations:
         store.auto_check_project("P2")
         assert store.get_project_done("P2") is False
 
+    def test_auto_check_undo_when_step_undone(self, store):
+        """步骤被取消完成时，项目也自动变为未完成"""
+        store.add_project("P3")
+        store.add_step("P3", "步骤1", "")
+        # 先全部完成
+        store.toggle_step("P3", 0)
+        store.auto_check_project("P3")
+        assert store.get_project_done("P3") is True
+        # 再把步骤改回未完成
+        store.toggle_step("P3", 0)
+        store.auto_check_project("P3")
+        assert store.get_project_done("P3") is False
+
 
 class TestCalendarQueries:
     """日历查询相关测试"""
